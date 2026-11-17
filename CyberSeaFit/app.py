@@ -1,9 +1,8 @@
-
-from flask import Flask, request, render_template_string
-import requests
-import os
 import ipaddress
+import os
 from urllib.parse import urlparse
+import requests
+from flask import Flask, render_template_string, request
 
 app = Flask(__name__)
 
@@ -12,133 +11,115 @@ app = Flask(__name__)
 # 1. URL SECURITY SCANNER
 # =====================================
 
+
 def check_link(url):
 
-    url = url.strip()
-    parsed = urlparse(url)
+  url = url.strip()
+  parsed = urlparse(url)
 
-    if parsed.scheme not in ("http", "https"):
-        return "Please enter a valid HTTP or HTTPS link."
+  if parsed.scheme not in ("http", "https"):
+    return "Please enter a valid HTTP or HTTPS link."
 
-    if not parsed.hostname:
-        return "Invalid URL."
+  if not parsed.hostname:
+    return "Invalid URL."
 
-    hostname = parsed.hostname.lower()
-    warnings = []
+  hostname = parsed.hostname.lower()
+  warnings = []
 
-    # HTTPS CHECK
-    if parsed.scheme == "http":
-        warnings.append(
-            "HTTP is being used instead of HTTPS."
-        )
+  # HTTPS CHECK
+  if parsed.scheme == "http":
+    warnings.append("HTTP is being used instead of HTTPS.")
 
-    # IP ADDRESS CHECK
-    try:
-        ipaddress.ip_address(hostname)
+  # IP ADDRESS CHECK
+  try:
+    ipaddress.ip_address(hostname)
 
-        warnings.append(
-            "This URL uses an IP address instead of a domain."
-        )
+    warnings.append("This URL uses an IP address instead of a domain.")
 
-    except ValueError:
-        pass
+  except ValueError:
+    pass
 
-    # PUNYCODE CHECK
-    if "xn--" in hostname:
-        warnings.append(
-            "This domain uses Punycode encoding. "
-            "Check its spelling carefully."
-        )
+  # PUNYCODE CHECK
+  if "xn--" in hostname:
+    warnings.append(
+        "This domain uses Punycode encoding. Check its spelling carefully."
+    )
 
-    # USERNAME/PASSWORD IN URL
-    if parsed.username or parsed.password:
-        warnings.append(
-            "This URL contains username or password information."
-        )
+  # USERNAME/PASSWORD IN URL
+  if parsed.username or parsed.password:
+    warnings.append("This URL contains username or password information.")
 
-    # SUBDOMAIN CHECK
-    if len(hostname.split(".")) > 4:
-        warnings.append(
-            "This domain contains many subdomain levels."
-        )
+  # SUBDOMAIN CHECK
+  if len(hostname.split(".")) > 4:
+    warnings.append("This domain contains many subdomain levels.")
 
-    # URLHAUS API
-    auth_key = os.getenv("URLHAUS_AUTH_KEY")
+  # URLHAUS API
+  auth_key = os.getenv("URLHAUS_AUTH_KEY")
 
-    if not auth_key:
-        return (
-            "Local checks completed, but URLhaus API key "
-            "is missing."
-        )
+  if not auth_key:
+    return "Local checks completed, but URLhaus API key is missing."
 
-    headers = {
-        "Auth-Key": auth_key
-    }
+  headers = {"Auth-Key": auth_key}
 
-    data = {
-        "url": url
-    }
+  data = {"url": url}
 
-    try:
+  try:
 
-        response = requests.post(
-            "https://urlhaus-api.abuse.ch/v1/url/",
-            headers=headers,
-            data=data,
-            timeout=20
-        )
+    response = requests.post(
+        "https://urlhaus-api.abuse.ch/v1/url/",
+        headers=headers,
+        data=data,
+        timeout=20,
+    )
 
-        response.raise_for_status()
-        result = response.json()
+    response.raise_for_status()
+    result = response.json()
 
-        status = result.get("query_status")
+    status = result.get("query_status")
 
-        if status == "ok":
+    if status == "ok":
 
-            return (
-                "DANGER: URLhaus lists this URL as a known "
-                "malware URL. Do not open it."
-            )
+      return (
+          "DANGER: URLhaus lists this URL as a known malware URL. Do not open"
+          " it."
+      )
 
-        if status != "no_results":
+    if status != "no_results":
 
-            return (
-                "Unable to complete URLhaus check. "
-                "Response: " + str(status)
-            )
+      return "Unable to complete URLhaus check. Response: " + str(status)
 
-        # FINAL REPORT
-        if warnings:
+    # FINAL REPORT
+    if warnings:
 
-            report = "CYBERSEAFIT SECURITY REPORT:\n\n"
+      report = "CYBERSEAFIT SECURITY REPORT:\n\n"
 
-            for warning in warnings:
-                report += "- " + warning + "\n"
+      for warning in warnings:
+        report += "- " + warning + "\n"
 
-            report += (
-                "\nCaution: These are warning indicators, "
-                "not proof that the website is malicious."
-            )
+      report += (
+          "\nCaution: These are warning indicators, not proof that the website"
+          " is malicious."
+      )
 
-            report += (
-                "\n\nURLhaus did not find a matching URL. "
-                "This does not guarantee safety."
-            )
+      report += (
+          "\n\nURLhaus did not find a matching URL. This does not guarantee"
+          " safety."
+      )
 
-            return report
+      return report
 
-        return (
-            "No suspicious indicators were found in these "
-            "basic checks, and URLhaus returned no match. "
-            "This does NOT guarantee that the link is safe."
-        )
+    return (
+        "No suspicious indicators were found in these basic checks, and"
+        " URLhaus returned no match. This does NOT guarantee that the link is"
+        " safe."
+    )
 
-    except requests.RequestException:
+  except requests.RequestException:
 
-        return (
-            "Local checks completed, but URLhaus could not "
-            "be reached. Please try again later."
-        )
+    return (
+        "Local checks completed, but URLhaus could not be reached. Please try"
+        " again later."
+    )
 
 
 # =====================================
@@ -146,62 +127,59 @@ def check_link(url):
 # =====================================
 
 topics = {
-
-    "phishing":
-        "Phishing is an online scam where criminals pretend "
-        "to be trusted people or companies to steal personal "
-        "information.",
-
-    "malware":
-        "Malware is harmful software designed to damage "
-        "devices, steal information or disrupt systems.",
-
-    "password":
-        "Use long, unique passwords for every account. "
-        "Never share your passwords with other people.",
-
-    "privacy":
-        "Online privacy means protecting your personal "
-        "information. Avoid sharing private details with "
-        "unknown people.",
-
-    "2fa":
-        "Two-factor authentication adds an extra security "
-        "step when signing in to an account.",
-
-    "virus":
-        "A computer virus is a type of malware that can "
-        "spread between files and systems.",
-
-    "cyberbullying":
-        "Cyberbullying means using digital platforms to "
-        "harass or hurt someone. Save evidence, block and "
-        "report the behaviour, and talk to a trusted adult.",
-
-    "ransomware":
-        "Ransomware is malware that locks or encrypts "
-        "data and demands payment. Keep backups and "
-        "avoid suspicious downloads.",
-
-    "safe browsing":
-        "Use trusted websites, check URLs carefully, "
-        "avoid suspicious downloads and update your browser.",
-
-    "hacking":
-        "Ethical hacking means testing computer security "
-        "with permission to find and fix weaknesses.",
-
-    "firewall":
-        "A firewall monitors network traffic and helps "
-        "block unwanted connections.",
-
-    "encryption":
-        "Encryption changes readable information into "
-        "coded information that requires a key to read.",
-
-    "social engineering":
-        "Social engineering is when someone manipulates "
-        "people into sharing information or taking unsafe actions."
+    "phishing": (
+        "Phishing is an online scam where criminals pretend to be trusted"
+        " people or companies to steal personal information."
+    ),
+    "malware": (
+        "Malware is harmful software designed to damage devices, steal"
+        " information or disrupt systems."
+    ),
+    "password": (
+        "Use long, unique passwords for every account. Never share your"
+        " passwords with other people."
+    ),
+    "privacy": (
+        "Online privacy means protecting your personal information. Avoid"
+        " sharing private details with unknown people."
+    ),
+    "2fa": (
+        "Two-factor authentication adds an extra security step when signing in"
+        " to an account."
+    ),
+    "virus": (
+        "A computer virus is a type of malware that can spread between files"
+        " and systems."
+    ),
+    "cyberbullying": (
+        "Cyberbullying means using digital platforms to harass or hurt"
+        " someone. Save evidence, block and report the behaviour, and talk to a"
+        " trusted adult."
+    ),
+    "ransomware": (
+        "Ransomware is malware that locks or encrypts data and demands"
+        " payment. Keep backups and avoid suspicious downloads."
+    ),
+    "safe browsing": (
+        "Use trusted websites, check URLs carefully, avoid suspicious downloads"
+        " and update your browser."
+    ),
+    "hacking": (
+        "Ethical hacking means testing computer security with permission to"
+        " find and fix weaknesses."
+    ),
+    "firewall": (
+        "A firewall monitors network traffic and helps block unwanted"
+        " connections."
+    ),
+    "encryption": (
+        "Encryption changes readable information into coded information that"
+        " requires a key to read."
+    ),
+    "social engineering": (
+        "Social engineering is when someone manipulates people into sharing"
+        " information or taking unsafe actions."
+    ),
 }
 
 
@@ -209,46 +187,44 @@ topics = {
 # 3. CHATBOT BRAIN
 # =====================================
 
+
 def chatbot(message):
 
-    message = message.strip()
-    lower_message = message.lower()
+  message = message.strip()
+  lower_message = message.lower()
 
-    if not message:
-        return "Please type a message."
+  if not message:
+    return "Please type a message."
 
-    # URL CHECK
-    if lower_message.startswith(("http://", "https://")):
-        return check_link(message)
+  # URL CHECK
+  if lower_message.startswith(("http://", "https://")):
+    return check_link(message)
 
-    # GREETINGS
-    if lower_message in ["hi", "hello", "hey", "good morning"]:
-        return (
-            "Hello! Welcome to CyberSeaFit. "
-            "I can explain cybersecurity topics and "
-            "check URLs using URLhaus."
-        )
-
-    # HELP
-    if "help" in lower_message:
-        return (
-            "You can ask me about phishing, malware, "
-            "passwords, privacy, 2FA, ransomware, "
-            "firewalls and ethical hacking. "
-            "You can also send an HTTP or HTTPS URL."
-        )
-
-    # KNOWLEDGE DATABASE
-    for keyword, answer in topics.items():
-
-        if keyword in lower_message:
-            return answer
-
+  # GREETINGS
+  if lower_message in ["hi", "hello", "hey", "good morning"]:
     return (
-        "I don't know the answer to that yet. "
-        "Try asking about phishing, malware, passwords, "
-        "privacy or online safety."
+        "Hello! Welcome to CyberSeaFit. I can explain cybersecurity topics and"
+        " check URLs using URLhaus."
     )
+
+  # HELP
+  if "help" in lower_message:
+    return (
+        "You can ask me about phishing, malware, passwords, privacy, 2FA,"
+        " ransomware, firewalls and ethical hacking. You can also send an HTTP"
+        " or HTTPS URL."
+    )
+
+  # KNOWLEDGE DATABASE
+  for keyword, answer in topics.items():
+
+    if keyword in lower_message:
+      return answer
+
+  return (
+      "I don't know the answer to that yet. Try asking about phishing, malware,"
+      " passwords, privacy or online safety."
+  )
 
 
 # =====================================
@@ -415,7 +391,7 @@ Try asking: What is phishing?
 <input
     type="text"
     id="userInput"
-    placeholder="Ask something..."
+    placeholder="Ask something or paste a URL..."
     autocomplete="off"
 >
 
@@ -521,25 +497,26 @@ document.getElementById("userInput")
 # 5. FLASK ROUTES
 # =====================================
 
+
 @app.route("/")
 def home():
 
-    return render_template_string(HTML)
+  return render_template_string(HTML)
 
 
 @app.route("/chat", methods=["POST"])
 def chat():
 
-    data = request.get_json(silent=True) or {}
+  data = request.get_json(silent=True) or {}
 
-    message = data.get("message", "")
+  message = data.get("message", "")
 
-    if not isinstance(message, str):
-        return {"reply": "Invalid message."}, 400
+  if not isinstance(message, str):
+    return {"reply": "Invalid message."}, 400
 
-    reply = chatbot(message)
+  reply = chatbot(message)
 
-    return {"reply": reply}
+  return {"reply": reply}
 
 
 # =====================================
@@ -548,6 +525,7 @@ def chat():
 
 if __name__ == "__main__":
 
-    print("CyberSeaFit is starting...")
+  print("CyberSeaFit is starting...")
 
-    app.run(debug=True)
+  app.run(debug=True)
+    
