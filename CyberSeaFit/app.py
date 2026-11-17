@@ -153,6 +153,26 @@ topics = {
     "social engineering": (
         "Social engineering is when someone manipulates people into sharing"
         " information or taking unsafe actions."
+    ),"wi-fi": (
+        "Public Wi-Fi networks can be unsafe. Avoid logging into"
+        " sensitive accounts on public networks without a secure VPN."
+    ),
+
+    "identity theft": (
+        "Identity theft happens when someone steals your personal details to"
+        " commit fraud. Monitor your accounts regularly and shred sensitive"
+        " documents."
+    ),
+
+    "deepfake": (
+        "A deepfake is AI-generated audio or video that mimics real people."
+        " Always verify unexpected requests from family or coworkers through a"
+        " second channel."
+    ),
+
+    "malicious downloads": (
+        "Never download files, attachments, or software from untrusted"
+        " websites or emails, as they often contain hidden malware."
     ),
 }
 
